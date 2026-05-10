@@ -14,6 +14,9 @@
 #include <fstream>
 #include <algorithm>
 #include <chrono>
+#include <type_traits>
+#include <functional>
+#include <vector>
 
 static constexpr uint32_t TILE = 64;
 static constexpr int WARMUP = 5, RUNS = 20;
@@ -152,9 +155,17 @@ int main(int argc, char** argv) {
 
             // ---------------- TMA ----------------
             float tt = -1.f, bt = -1.f;
-
+            CUtensorMap m;
             if (tma_ok && N >= TILE) {
-                CUtensorMap m = make_tma_1d(d, N, TILE, sizeof(T));
+                if constexpr (std::is_same_v<T, float>) {
+                    m = make_tma_1d_f32(d, N, TILE);
+                } else if constexpr (std::is_same_v<T, __half>) {
+                    m = make_tma_1d_f16(d, N, TILE);
+                } else if constexpr (std::is_same_v<T, __nv_bfloat16>) {
+                    m = make_tma_1d_bf16(d, N, TILE);
+                } else if constexpr (std::is_same_v<T, __nv_fp8_e4m3>) {
+                    m = make_tma_1d_fp8(d, N, TILE);
+                }
 
                 tt = time_kernel([&] {
                     tma_1d<T><<<blk, 32>>>(m, nt, d);

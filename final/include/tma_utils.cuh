@@ -10,6 +10,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <cuda_fp16.h>
+#include <cuda_bf16.h>
+#include <cuda_fp8.h>
 
 // ─── Error-checking macros ────────────────────────────────────────────────────
 
@@ -81,6 +84,51 @@ inline CUtensorMap make_tma_1d_f32(void* ptr, uint64_t N, uint32_t tile_elems) {
     return map;
 }
 
+// 1-D: N float16 eleman, tile_elems genisliginde tile
+inline CUtensorMap make_tma_1d_f16(void* ptr, uint64_t N, uint32_t tile_elems) {
+    CUtensorMap map{};
+    uint64_t globalDim[1]     = { N };
+    uint64_t globalStrides[1] = { N * sizeof(__half) };
+    uint32_t boxDim[1]        = { tile_elems };
+    uint32_t elemStrides[1]   = { 1 };
+    CU_CHECK(cuTensorMapEncodeTiled(
+        &map, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, 1,
+        ptr, globalDim, globalStrides, boxDim, elemStrides,
+        CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_NONE,
+        CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
+    return map;
+}
+
+// 1-D: N bfloat16 eleman, tile_elems genisliginde tile
+inline CUtensorMap make_tma_1d_bf16(void* ptr, uint64_t N, uint32_t tile_elems) {
+    CUtensorMap map{};
+    uint64_t globalDim[1]     = { N };
+    uint64_t globalStrides[1] = { N * sizeof(__nv_bfloat16) };
+    uint32_t boxDim[1]        = { tile_elems };
+    uint32_t elemStrides[1]   = { 1 };
+    CU_CHECK(cuTensorMapEncodeTiled(
+        &map, CU_TENSOR_MAP_DATA_TYPE_BFLOAT16, 1,
+        ptr, globalDim, globalStrides, boxDim, elemStrides,
+        CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_NONE,
+        CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
+    return map;
+}
+
+// 1-D: N fp8 (e4m3) eleman, tile_elems genisliginde tile
+inline CUtensorMap make_tma_1d_fp8(void* ptr, uint64_t N, uint32_t tile_elems) {
+    CUtensorMap map{};
+    uint64_t globalDim[1]     = { N };
+    uint64_t globalStrides[1] = { N * sizeof(__nv_fp8_e4m3) };
+    uint32_t boxDim[1]        = { tile_elems };
+    uint32_t elemStrides[1]   = { 1 };
+    CU_CHECK(cuTensorMapEncodeTiled(
+        &map, CU_TENSOR_MAP_DATA_TYPE_FLOAT_E4M3, 1,
+        ptr, globalDim, globalStrides, boxDim, elemStrides,
+        CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_NONE,
+        CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
+    return map;
+}
+
 // 2-D: cols x rows float32 matris
 inline CUtensorMap make_tma_2d_f32(
     void* ptr, uint64_t cols, uint64_t rows,
@@ -93,6 +141,60 @@ inline CUtensorMap make_tma_2d_f32(
     uint32_t elemStrides[2]   = { 1, 1 };
     CU_CHECK(cuTensorMapEncodeTiled(
         &map, CU_TENSOR_MAP_DATA_TYPE_FLOAT32, 2,
+        ptr, globalDim, globalStrides, boxDim, elemStrides,
+        CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_NONE,
+        CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
+    return map;
+}
+
+// 2-D: cols x rows float16
+inline CUtensorMap make_tma_2d_f16(
+    void* ptr, uint64_t cols, uint64_t rows,
+    uint64_t pitch_bytes, uint32_t tile_cols, uint32_t tile_rows)
+{
+    CUtensorMap map{};
+    uint64_t globalDim[2]     = { cols, rows };
+    uint64_t globalStrides[1] = { pitch_bytes };
+    uint32_t boxDim[2]        = { tile_cols, tile_rows };
+    uint32_t elemStrides[2]   = { 1, 1 };
+    CU_CHECK(cuTensorMapEncodeTiled(
+        &map, CU_TENSOR_MAP_DATA_TYPE_FLOAT16, 2,
+        ptr, globalDim, globalStrides, boxDim, elemStrides,
+        CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_NONE,
+        CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
+    return map;
+}
+
+// 2-D: cols x rows bfloat16
+inline CUtensorMap make_tma_2d_bf16(
+    void* ptr, uint64_t cols, uint64_t rows,
+    uint64_t pitch_bytes, uint32_t tile_cols, uint32_t tile_rows)
+{
+    CUtensorMap map{};
+    uint64_t globalDim[2]     = { cols, rows };
+    uint64_t globalStrides[1] = { pitch_bytes };
+    uint32_t boxDim[2]        = { tile_cols, tile_rows };
+    uint32_t elemStrides[2]   = { 1, 1 };
+    CU_CHECK(cuTensorMapEncodeTiled(
+        &map, CU_TENSOR_MAP_DATA_TYPE_BFLOAT16, 2,
+        ptr, globalDim, globalStrides, boxDim, elemStrides,
+        CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_NONE,
+        CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
+    return map;
+}
+
+// 2-D: cols x rows fp8 (e4m3)
+inline CUtensorMap make_tma_2d_fp8(
+    void* ptr, uint64_t cols, uint64_t rows,
+    uint64_t pitch_bytes, uint32_t tile_cols, uint32_t tile_rows)
+{
+    CUtensorMap map{};
+    uint64_t globalDim[2]     = { cols, rows };
+    uint64_t globalStrides[1] = { pitch_bytes };
+    uint32_t boxDim[2]        = { tile_cols, tile_rows };
+    uint32_t elemStrides[2]   = { 1, 1 };
+    CU_CHECK(cuTensorMapEncodeTiled(
+        &map, CU_TENSOR_MAP_DATA_TYPE_FLOAT_E4M3, 2,
         ptr, globalDim, globalStrides, boxDim, elemStrides,
         CU_TENSOR_MAP_INTERLEAVE_NONE, CU_TENSOR_MAP_SWIZZLE_NONE,
         CU_TENSOR_MAP_L2_PROMOTION_NONE, CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE));
